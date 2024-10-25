@@ -1,0 +1,20 @@
+- title: Documentation
+  url: docs
+  links:
+    - title: "Getting Started"
+      url: "docs/getting-started"
+      children:
+        - title: Prerequisites
+          url: "docs/getting-started#prerequisites"
+        - title: Step-by-Step Integration
+          url: "docs/getting-started#step-by-step-integration"
+        - title: Error Handling
+          url: "docs/getting-started#error-handling"
+        - title: Testing
+          url: "docs/getting-started#testing"
+    - title: Versioning
+      url: "docs/versioning"
+    - title: "About"
+      url: "about"
+    - title: "News"
+      url: "news"
