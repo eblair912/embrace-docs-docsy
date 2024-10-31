@@ -9,6 +9,8 @@ permalink: /docs/
 Welcome to the {{ site.title }} Documentation pages! Here you can quickly jump to a 
 particular page.
 
+![New Quote Flow](../assets/img/stripe-diagram.png)
+
 <div class="section-index">
     <hr class="panel-line">
     {% for post in site.docs  %}        

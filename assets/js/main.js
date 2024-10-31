@@ -56,5 +56,30 @@ layout: null
             });
         },
     };
+
     Search.init();
 }(jQuery));
+
+function toggleIcon(e) {
+    const targetRow = e.target.previousElementSibling; // Get the parent row
+    const iconCell = targetRow.querySelector('.toggle-icon');
+    if (e.type === 'show.bs.collapse') {
+      iconCell.textContent = '-';
+      targetRow.setAttribute('aria-expanded', 'true');
+    } else if (e.type === 'hide.bs.collapse') {
+      iconCell.textContent = '+';
+      targetRow.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  // Get all elements that trigger collapse
+  const collapsibleRows = document.querySelectorAll('[data-bs-toggle="collapse"]');
+
+  collapsibleRows.forEach(function (row) {
+    const collapseTargetId = row.getAttribute('data-bs-target');
+    const collapseTarget = document.querySelector(collapseTargetId);
+
+    // Add event listeners for show and hide events
+    collapseTarget.addEventListener('show.bs.collapse', toggleIcon);
+    collapseTarget.addEventListener('hide.bs.collapse', toggleIcon);
+  });

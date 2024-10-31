@@ -26,18 +26,18 @@ description: > # this means to ignore newlines until "baseurl:"
 baseurl: "" # the subpath of your site, e.g. /blog
 
 # This is mostly for testing
-url: "https://vsoch.github.io" # the base hostname & protocol for your site
+url: "https://eblair912.github.io" # the base hostname & protocol for your site
 
 # Social (First three Required)
-repo: "https://github.com/vsoch/docsy-jekyll"
-github_user: "vsoch"
-github_repo: "docsy-jekyll"
-github_branch: "master"
+repo: "https://github.com/eblair912/embrace-docs-docsy"
+github_user: "eblair912"
+github_repo: "embrace-docs-docsy"
+github_branch: "main"
 
 # Optional
-twitter: vsoch
-linkedin: vsochat
-dockerhub: vanessa
+# twitter: vsoch
+# linkedin: vsochat
+# dockerhub: vanessa
 
 # These options are used to configure the locations of your version history when you want to serve versioned documents
 version_params:
@@ -80,7 +80,7 @@ markdown: kramdown
 tag_color: primary # danger, success, warning, primary, info, secondary
 
 accentColor: red # purple, green, etc.
-themeColor: red # purple, green, blue, orange, purple, grey
+themeColor: purple # purple, green, blue, orange, purple, grey
 fixedNav: 'true' # true or false
 
 permalink: /:year/:title/

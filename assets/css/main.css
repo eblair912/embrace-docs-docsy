@@ -18622,3 +18622,17 @@ footer {
     }
     
 }
+
+/* custom css */
+a {
+    color: {{ site.color }};
+}
+
+a:hover {
+    color: #241434;
+}
+
+table {
+    font-size: small;
+}
+

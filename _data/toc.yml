@@ -1,20 +1,20 @@
 - title: Documentation
   url: docs
   links:
-    - title: "Getting Started"
-      url: "docs/getting-started"
+    - title: "Prerequisites"
+      url: "docs/prereqs"
+    - title: "Step-by-Step Integration"
+      url: "docs/steps"
       children:
-        - title: Prerequisites
-          url: "docs/getting-started#prerequisites"
-        - title: Step-by-Step Integration
-          url: "docs/getting-started#step-by-step-integration"
-        - title: Error Handling
-          url: "docs/getting-started#error-handling"
-        - title: Testing
-          url: "docs/getting-started#testing"
-    - title: Versioning
-      url: "docs/versioning"
-    - title: "About"
-      url: "about"
-    - title: "News"
-      url: "news"
+        - title: "Step 1: Install Stripe SDK"
+          url: "docs/steps#step-1-install-stripes-sdk"
+        - title: "Step 2: Get Publishable Key"
+          url: "docs/steps#step-2-get-publishable-key"
+        - title: "Step 3: Add Stripe Elements to Your Checkout"
+          url: "docs/steps#step-3-add-stripe-elements-to-your-checkout-page"
+        - title: "Step 4: Call Embrace Purchase Endpoint"
+          url: "docs/steps#step-4-use-embrace-partner-api-to-complete-purchase"
+    - title: "Testing"
+      url: "docs/testing"
+    - title: "Error Handling"
+      url: "docs/error-handling"
