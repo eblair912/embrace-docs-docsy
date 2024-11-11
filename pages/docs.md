@@ -14,7 +14,7 @@ permalink: /docs/
 This documentation provides a step-by-step guide to integrating Stripe Elements with the Embrace API, ensuring compliance with our security standards and simplifying payment handling.
 
 #### Quick overview of the policy purchasing flow with our external API and Stripe:
-1. **Request Quotes** - `/quotes/fullquote` - This step assumes customer and pet details have already been collected.
+1. [**Request Quotes**](/docs/steps#step-1-make-a-request-to-quote-endpoint) - `/quotes/fullquote` - This step assumes customer and pet details have already been collected.
    1. Request
       1. Customer contact details
       2. Pet details
@@ -23,20 +23,20 @@ This documentation provides a step-by-step guide to integrating Stripe Elements 
       1. Quote ID
       2. Premium summary
       3. Full pet quote, including coverage details
-2. **Request a Checkout** - `/quotes/{quoteId}/checkout` - Triggered after the customer reviews the quote and is ready to proceed to checkout.
+2. [**Request a Checkout**](/docs/steps#step-2-make-a-request-to-the-checkout-endpoint) - `/quotes/{quoteId}/checkout` - Triggered after the customer reviews the quote and is ready to proceed to checkout.
    1. Request
       1. Quote ID (included in endpoint URL)
       2. Optional analytics
    2. Response
       1. Stripe Publishable Key
       2. Stripe Client Secret
-3. **Initialize Stripe Elements**
+3. [**Initialize Stripe Elements**](/docs/steps#step-3-initialize-stripe-and-display-checkout)
    1. Initialize Stripe
       1. Use the Publishable Key from the Checkout response to initialize Stripe.
       2. Use the Client Secret from the Checkout response to set up Stripe Elements.
    2. Collect Payment Method Token from Stripe
       1. After the customer submits payment information, Stripe will attempt to add the payment method and return a Payment Method Token upon success.
-4. **Finalize Purchase** - `/quotes/fullquote/{quoteId}/purchase` - After the customer submits payment via Stripe.
+4. [**Finalize Purchase**](/docs/steps#step-4-call-the-purchase-endpoint) - `/quotes/fullquote/{quoteId}/purchase-stripe` - After the customer submits payment via Stripe.
    1. Request
       1. Quote ID (included in endpoint URL)
       2. Payment Method Token (returned from Stripe after submission)
