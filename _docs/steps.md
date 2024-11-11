@@ -8,222 +8,142 @@ description: How to implement Stripe and the Embrace API, step-by-step
 
 # Step-by-Step Integration
 
-## Step 1: Install Stripe's SDK
-##### Option 1: Install locally using React Stripe.js
-**Installation**
+## Step 1: Make a Request to Quote endpoint
+In order to get the quote ID neccessary for a Stripe checkout, you will first need to make a request to Embrace's `/quotes/fullquote` endpoint.
 
-Install React Stripe.js and the Stripe.js loader using npm:
-```console
-npm install --save @stripe/react-stripe-js @stripe/stripe-js
-```
-**Elements Provider**
-
-The `Elements` provider allows you to use [Element components](https://docs.stripe.com/sdks/stripejs-react#element-components) and access the [Stripe object](https://docs.stripe.com/js/initializing) in any nested component. Render an `Elements` provider at the root of your React app so that it is available everywhere you need it. 
-
-To use the `Elements` provider, call [loadStripe](https://github.com/stripe/stripe-js/blob/master/README.md#loadstripe) from `@stripe/stripe-js` with your publishable key. The `loadStripe` function asynchronously loads the Stripe.js script and initializes a Stripe object. Pass the returned `Promise` to `Elements`.
+Before you call this endpoint, you must have all of the details for the quote. Make sure to view the [**quote request schema**](https://docs.embrace.dev/api-details#api=embrace-quote-api-dev-v2&operation=post-quotes-fullquote) to ensure all required information is being sent.
 
 {% highlight js linenos %}
-import {Elements} from '@stripe/react-stripe-js';
-import {loadStripe} from '@stripe/stripe-js';
+document.getElementById('quoteForm').addEventListener('submit', function(e) {
+    e.preventDefault();
 
-// Make sure to call `loadStripe` outside of a component’s render to avoid
-// recreating the `Stripe` object on every render.
-const stripePromise = loadStripe('your_test_key');
+    // Collect pet data
+    let pets = [];
+    let pet = {
+        name: document.getElementById('petName1').value,
+        breedId: parseInt(document.getElementById('petBreedId1').value),
+        gender: document.getElementById('petGender1').value,
+        age: document.getElementById('petAge1').value
+    };
+    pets.push(pet);
 
-export default function App() {
-  const options = {
-    // passing the client secret obtained from the server
-    clientSecret: '{{CLIENT_SECRET}}',
-  };
+    // Collect contact data
+    let contact = {
+        ratingZipCode: document.getElementById('ratingZipCode').value,
+        email: document.getElementById('email').value,
+        phoneNumber: document.getElementById('phoneNumber').value,
+        brand: document.getElementById('brand').value,
+        billingInformation: {
+            paymentFrequency: document.getElementById('paymentFrequency').value,
+        },
+        isMilitary: document.getElementById('isMilitary').checked,
+    };
 
-  return (
-    <Elements stripe={stripePromise} options={options}>
-      <CheckoutForm />
-    </Elements>
-  );
-};
+    let analytics = {
+        source: "YourSource",
+    }
+
+    // Collect enableEmbraceRemarketing
+    let enableEmbraceRemarketing = false;
+
+    // Construct the data object
+    let data = {
+        pets: pets,
+        contact: contact,
+        analytics: analytics,
+        enableEmbraceRemarketing: enableEmbraceRemarketing
+    };
+
+    // Send the data via POST
+    fetch('https://api.embrace.dev/external-quote-dev/v2/quotes/fullquote', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            'epi-apim-subscription-key': 'YOUR_EMBRACE_API_KEY'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        const quoteId = data.quoteId;
+
+        if(quoteId) {
+            // Get the current URL
+            const url = new URL(window.location);
+
+            // Set or update the quoteId in the URL
+            url.searchParams.set('quoteId', quoteId);
+
+            // Update the URL in the browser without reloading the page
+            window.history.replaceState(null, '', url);
+
+            // Show the other response details to the customer
+        } else {
+            console.error('quoteId not found in response:', data);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error submitting data.');
+    });
+});
 {% endhighlight %}
 
-For additional information on how to use `Elements` visit [Stripe Docs](https://docs.stripe.com/sdks/stripejs-react#elements-provider)
+{% include alert.html type="warning" title="Note" content="The above example does not include all available properties available in the quote request. Please view the full request schema to see all available options." %}
 
-##### Option 2: Use a script tag
-**Installation**
+With a successful `quote` response, a **`quoteId`** will be returned. In the example above you can see we are setting the `quoteId` as a URL parameter, so it can be used after the customer has confirmed their quote details. 
 
-Add the Stripe.js module as a script to the `<head>` element of your HTML:
-{% highlight html linenos %}
-<head>
-  <script src="https://js.stripe.com/v3"></script>
-</head>
-{% endhighlight %}
+## Step 2: Make a Request to the Checkout endpoint
+Once the customer has confirmed their quote details, and are ready to checkout, you will need to make a request to Embrace's Checkout endpoint `/quotes/{quoteId}/checkout`. 
 
-**Stripe.js Constructor**
-
-Set the API publishable key to allow Stripe to tokenize customer information and collect payment details:
 {% highlight js linenos %}
-var stripe = Stripe('your_testkey_abc123');
+let publishableKey;
+let clientSecret;
+
+document.getElementById('quoteForm').addEventListener('confirm', function(e) {
+    e.preventDefault();
+
+    // Create a URLSearchParams object from the current URL
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // Get the value of 'quoteId' from the URL
+    const quoteId = urlParams.get('quoteId');
+
+    if(quoteId) {
+        // Send the data via POST
+        fetch(`https://api.embrace.dev/external-quote-dev/v2/quotes/${quoteId}/checkout`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache',
+                'epi-apim-subscription-key': 'YOUR_EMBRACE_API_KEY'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+
+            if(data.stripePublishableKey && data.stripeSetupIntentClientSecret) {
+                // Set the stripe keys from the checkout response
+                publishableKey = data.stripePublishableKey;
+                clientSecret = data.stripeSetupIntentClientSecret;
+            } else {
+                console.error('Stripe keys not found in response:', data);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error submitting data.');
+        });
+    } else {
+        console.error('quoteId not found in URL:', quoteId);
+    }
+});
 {% endhighlight %}
 
-## Step 2: Get Publishable Key
-#### Use Checkout Endpoint to Get Publishable Key
-To initalize the Stripe element, you will need the publishable key. This key is returned from the `checkout` endpoint of Embrace's API. `checkout` should only be called after the quote has been selected by the customer. You will pass the `quoteId` returned from `fullquote` as a parameter in the `checkout` endpoint.
-
-**Endpoint:** `POST /checkout`
-- **URL:** `https://api.embracepetinsurance.com/api/v2/quotes/{quoteId}/checkout`
-- **Method:** POST
-- **Headers:** Include your API key in the header
-
-**Request Body:**
-
-<table class="table table-light">
-  <thead>
-    <tr class="text-uppercase text-muted">
-      <th scope="col"></th>
-      <th scope="col">Field</th>
-      <th scope="col"></th>
-      <th scope="col">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td data-bs-toggle="collapse" data-bs-target="#analyticsCheckoutCollapse" aria-expanded="true" aria-controls="analyticsCheckoutCollapse" style="cursor: pointer;" class="fs-5 toggle-icon">+</td>
-      <td class="fw-bolder" scope="col">analytics</td>
-      <td></td>
-      <td>Expand to see details</td>
-    </tr>
-    <tr class="collapse" id="analyticsCheckoutCollapse">
-      <td></td>
-      <td colspan="3">
-        <table class="table table-sm mb-0">
-          <thead>
-            <tr class="text-uppercase text-muted">
-              <th scope="col">Field</th>
-              <th scope="col">Type</th>
-              <th scope="col">Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="fw-bolder" scope="row">medium</td>
-              <td>string</td>
-              <td>Embrace provides this value.</td>
-            </tr>
-            <tr>
-              <td class="fw-bolder" scope="row">term</td>
-              <td>string</td>
-              <td>Optional field to use at your discretion.</td>
-            </tr>
-            <tr>
-              <td class="fw-bolder" scope="row">content</td>
-              <td>string</td>
-              <td>Optional field to use at your discretion.</td>
-            </tr>
-            <tr>
-              <td class="fw-bolder" scope="row">campaign</td>
-              <td>string</td>
-              <td>Optional field for campaign name, slogan, promo code, etc...</td>
-            </tr>
-            <tr>
-              <td class="fw-bolder" scope="row">source</td>
-              <td>string</td>
-              <td>Embrace provides this value.</td>
-            </tr>
-          </tbody>
-        </table>
-      </td>
-    </tr>
-    <tr>
-      <td data-bs-toggle="collapse" data-bs-target="#expVariationCollapse" aria-expanded="true" aria-controls="expVariationCollapse" style="cursor: pointer;" class="fs-5 toggle-icon">+</td>
-      <td class="fw-bolder" scope="col">experimentVariation</td>
-      <td></td>
-      <td>Expand to see details</td>
-    </tr>
-    <tr class="collapse" id="expVariationCollapse">
-      <td></td>
-      <td colspan="3">
-        <table class="table table-sm mb-0">
-          <thead>
-            <tr class="text-uppercase text-muted">
-              <th scope="col">Field</th>
-              <th scope="col">Type</th>
-              <th scope="col">Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="fw-bolder" scope="row">variationId</td>
-              <td>string</td>
-              <td>Nullable field.</td>
-            </tr>
-            <tr>
-              <td class="fw-bolder" scope="row">variationSystemName</td>
-              <td>string</td>
-              <td>Nullable field.</td>
-            </tr>
-            <tr>
-              <td class="fw-bolder" scope="row">variationAdded</td>
-              <td>DateTime</td>
-              <td>Date and time when variation was added.</td>
-            </tr>
-          </tbody>
-        </table>
-      </td>
-    </tr>
-    <tr>
-      <td data-bs-toggle="collapse" data-bs-target="#abTestCollapse" aria-expanded="true" aria-controls="abTestCollapse" style="cursor: pointer;" class="fs-5 toggle-icon">+</td>
-      <td class="fw-bolder" scope="col">abTest</td>
-      <td></td>
-      <td>Expand to see details</td>
-    </tr>
-    <tr class="collapse" id="abTestCollapse">
-      <td></td>
-      <td colspan="3">
-        <table class="table table-sm mb-0">
-          <thead>
-            <tr class="text-uppercase text-muted">
-              <th scope="col">Field</th>
-              <th scope="col">Type</th>
-              <th scope="col">Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="fw-bolder" scope="row">experimentVariationName</td>
-              <td>string</td>
-              <td>Variation name (on, off, not_targeted, etc...)</td>
-            </tr>
-            <tr>
-              <td class="fw-bolder" scope="row">experimentDescription</td>
-              <td>string</td>
-              <td>Experiment Name (ab-11_reduced_coverage_test for example)</td>
-            </tr>
-          </tbody>
-        </table>
-      </td>
-    </tr>
-  </tbody>
-</table>
-
-**Example Request:**
-{% highlight json %}
-{
-  "analytics": {
-    "medium": "string",
-    "term": "string",
-    "content": "string",
-    "campaign": "summer-sale",
-    "source": "string"
-  },
-  "experimentVariation": {
-    "variationId": "string",
-    "variationSystemName": "string",
-    "variationAdded": "2024-10-31T18:47:57.952Z"
-  },
-  "abTest": {
-    "experimentVariationName": "string",
-    "experimentDescription": "string"
-  }
-}
-{% endhighlight %}
+With a successful `checkout` response, you will receive the following:
+- **`stripePublishableKey`** - used to create a new instance of Stripe.
+- **`stripeSetupIntentClientSecret`** - associated with this specific customer, and used to create a [Stripe Element](https://docs.stripe.com/sdks/stripejs-react#element-components).
 
 **Example Response:**
 {% highlight json %}
@@ -235,271 +155,435 @@ To initalize the Stripe element, you will need the publishable key. This key is 
     "campaign": "summer-sale",
     "source": "string"
   },
-  "quoteId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-  "quoteState": "string",
+  "quoteId": "00000000-0000-0000-0000-000000000000",
+  "quoteState": "Checkout",
   "sessionType": "string",
-  "publishableKey": "123_abc_publishablekey"
+  "stripePublishableKey": "stripe_publishable_key",
+  "stripeSetupIntentClientSecret": "stripe_client_secret"
 }
 {% endhighlight %}
 
 
-## Step 3: Add Stripe Elements to Your Checkout Page
-Embed Stripe Elements in your frontend code to collect payment details securely:
-{% highlight js linenos %}
-// Initialize Stripe
-const stripe = Stripe('123_abc_publishablekey');
-const elements = stripe.elements();
+More details on the `checkout` request and response can be [**found here**](https://docs.embrace.dev/api-details#api=embrace-quote-api-dev-v2&operation=post-quotes-checkout)
 
-// Create a card input field
-const card = elements.create('card');
-card.mount('#card-element');
+## Step 3: Initialize Stripe and Display Checkout
+Stripe offers front-end UI components called [Stripe Elements](https://docs.stripe.com/payments/payment-element). This is what we will use to display the checkout to the customer.
 
-// Handle form submission
-const form = document.getElementById('payment-form');
-form.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  
-  const { token, error } = await stripe.createToken(card);
-  
-  if (error) {
-    // Display error to the user
-    console.error(error.message);
-  } else {
-    // Pass token to your backend
-    handleToken(token);
+<!-- Nav tabs -->
+<ul class="nav nav-tabs" id="codeTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="html-tab" data-bs-toggle="tab" data-bs-target="#htmlCode" type="button" role="tab" aria-controls="htmlCode" aria-selected="true">checkout.html</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="js-tab" data-bs-toggle="tab" data-bs-target="#jsCode" type="button" role="tab" aria-controls="jsCode" aria-selected="false">checkout.js</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="css-tab" data-bs-toggle="tab" data-bs-target="#cssCode" type="button" role="tab" aria-controls="cssCode" aria-selected="false">checkout.css</button>
+  </li>
+</ul>
+
+<!-- Tab panes -->
+<div class="tab-content" id="codeTabsContent">
+  <div class="tab-pane fade show active" id="htmlCode" role="tabpanel" aria-labelledby="html-tab">
+  <!-- Your HTML code example -->
+  {% highlight html linenos %}
+  <html>
+    <head>
+      <title>Accept a payment</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <link rel="stylesheet" href="checkout.css" />
+      <script src="https://js.stripe.com/v3/"></script>
+      <script src="checkout.js" defer></script>
+    </head>
+    <body>
+      <!-- Display a payment form -->
+      <form id="payment-form">
+        <div id="payment-element">
+          <!--Stripe.js injects the Payment Element-->
+        </div>
+        <button id="submit">
+          <div class="spinner hidden" id="spinner"></div>
+          <span id="button-text">Pay now</span>
+        </button>
+        <div id="payment-message" class="hidden"></div>
+      </form>
+    </body>
+  </html>{% endhighlight %}
+  </div>
+  <div class="tab-pane fade" id="jsCode" role="tabpanel" aria-labelledby="js-tab">
+  <!-- Your JavaScript code example -->
+  {% highlight js linenos %}
+  // Here is where you'll use the stripePublishableKey returned from checkout
+  const stripe = Stripe(publishableKey);
+  let paymentMethodId;
+
+  initialize();
+
+  document.querySelector("#payment-form").addEventListener("submit", handleSubmit);
+
+  async function initialize() {
+    const appearance = {
+      theme: 'stripe',
+    };
+
+    // Here is where you'll use the stripeSetupIntentClientSecret returned from checkout
+    elements = stripe.elements({ appearance, clientSecret });
+
+    const paymentElementOptions = {
+      layout: "tabs",
+    };
+
+    const paymentElement = elements.create("payment", paymentElementOptions);
+    paymentElement.mount("#payment-element");
   }
-});
-{% endhighlight %}
-
-## Step 4: Use Embrace Partner API to Complete Purchase
-Once payment is confirmed, you’ll need to call our API to finalize the policy purchase. The endpoint you’ll use is `purchase`
-
-**Endpoint:** `POST /purchaseV2`
-- **URL:** `https://api.embracepetinsurance.com/api/v2/purchaseV2`
-- **Method:** POST
-- **Headers:** Include your API key in the header
   
-**Request Body:**
+  // This is hit after the user clicks the button to pay
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
 
-<table class="table table-light">
-  <thead>
-    <tr class="text-uppercase text-muted">
-      <th scope="col"></th>
-      <th scope="col">Field</th>
-      <th scope="col">Type</th>
-      <th scope="col">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td data-bs-toggle="collapse" data-bs-target="#analyticsCollapse" aria-expanded="true" aria-controls="analyticsCollapse" style="cursor: pointer;" class="fs-5 toggle-icon">+</td>
-      <td class="fw-bolder" scope="col">analytics</td>
-      <td></td>
-      <td>Expand to see details</td>
-    </tr>
-    <tr class="collapse" id="analyticsCollapse">
-      <td></td>
-      <td colspan="3">
-        <table class="table table-sm mb-0">
-          <thead>
-            <tr class="text-uppercase text-muted">
-              <th scope="col">Field</th>
-              <th scope="col">Type</th>
-              <th scope="col">Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="fw-bolder" scope="row">medium</td>
-              <td>string</td>
-              <td>Embrace provides this value.</td>
-            </tr>
-            <tr>
-              <td class="fw-bolder" scope="row">term</td>
-              <td>string</td>
-              <td>Optional field to use at your discretion.</td>
-            </tr>
-            <tr>
-              <td class="fw-bolder" scope="row">content</td>
-              <td>string</td>
-              <td>Optional field to use at your discretion.</td>
-            </tr>
-            <tr>
-              <td class="fw-bolder" scope="row">campaign</td>
-              <td>string</td>
-              <td>Optional field for campaign name, slogan, promo code, etc...</td>
-            </tr>
-            <tr>
-              <td class="fw-bolder" scope="row">source</td>
-              <td>string</td>
-              <td>Embrace provides this value.</td>
-            </tr>
-          </tbody>
-        </table>
-      </td>
-    </tr>
-    <tr>
-      <td data-bs-toggle="collapse" data-bs-target="#paymentCollapse" aria-expanded="false" aria-controls="paymentCollapse" style="cursor: pointer;" class="fs-5 toggle-icon">+</td>
-      <td class="fw-bolder" scope="row">paymentInformation</td>
-      <td></td>
-      <td>Expand to see details</td>
-    </tr>
-    <tr class="collapse" id="paymentCollapse">
-      <td colspan="4">
-        <table class="table table-light mb-0">
-          <thead>
-            <tr class="text-uppercase text-muted">
-              <th></th>
-              <th scope="col">Field</th>
-              <th scope="col">Type</th>
-              <th scope="col">Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td data-bs-toggle="collapse" data-bs-target="#billingCollapse" aria-expanded="false" aria-controls="billingCollapse" style="cursor: pointer;" class="fs-5 toggle-icon">+</td>
-              <td class="fw-bolder" scope="row">billingAddress</td>
-              <td></td>
-              <td></td>
-            </tr>
-            <tr class="collapse" id="billingCollapse">
-              <td></td>
-              <td colspan="3">
-                <table class="table mb-0">
-                  <thead>
-                    <tr class="text-uppercase text-muted">
-                      <th scope="col">Field</th>
-                      <th scope="col">Type</th>
-                      <th scope="col">Description</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td class="fw-bolder" scope="row">line1</td>
-                      <td>string</td>
-                      <td>First line for street address.</td>
-                    </tr>
-                    <tr>
-                      <td class="fw-bolder" scope="row">line2</td>
-                      <td>string</td>
-                      <td>Option second line for street address.</td>
-                    </tr>
-                    <tr>
-                      <td class="fw-bolder" scope="row">city</td>
-                      <td>string</td>
-                      <td>Full city name.</td>
-                    </tr>
-                    <tr>
-                      <td class="fw-bolder" scope="row">state</td>
-                      <td>string</td>
-                      <td>Two letter abbreviation of the State.</td>
-                    </tr>
-                    <tr>
-                      <td class="fw-bolder" scope="row">zipCode</td>
-                      <td>string</td>
-                      <td>5 numeric charachters. Must be within the U.S.</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </td>
-            </tr>
-            <tr>
-              <td></td>
-              <td class="fw-bolder" scope="row">paymentMethod</td>
-              <td>string</td>
-              <td>Ach or Credit.</td>
-            </tr>
-            <tr>
-              <td></td>
-              <td class="fw-bolder" scope="row">paymentFrequency</td>
-              <td>string</td>
-              <td>Monthly or Yearly.</td>
-            </tr>
-          </tbody>
-        </table>
-      </td>
-    </tr>
-    <tr>
-      <td></td>
-      <td class="fw-bolder" scope="row">firstName</td>
-      <td>string</td>
-      <td>The customer's first name.</td>
-    </tr>
-    <tr>
-      <td></td>
-      <td class="fw-bolder" scope="row">lastName</td>
-      <td>string</td>
-      <td>The customer's last name.</td>
-    </tr>
-    <tr>
-      <td></td>
-      <td class="fw-bolder" scope="row">phoneNumber</td>
-      <td>string</td>
-      <td>The customer's phone number.</td>
-    </tr>
-    <tr>
-      <td></td>
-      <td class="fw-bolder" scope="row">agreeToTermsOfServiceAndPrivacyPolicy</td>
-      <td>boolean</td>
-      <td>Terms of Service and Privacy Policy must be expressly accepted by the purchaser.</td>
-    </tr>
-    <tr>
-      <td></td>
-      <td class="fw-bolder" scope="row">optInTextMessage</td>
-      <td>boolean</td>
-      <td>Optional field for customer to accept text messages.</td>
-    </tr>
-    <tr>
-      <td></td>
-      <td class="fw-bolder" scope="row">allPetsHadVetVisit</td>
-      <td>boolean</td>
-      <td>Pet has had required vet visit within the past 12 months, or will have one within 14 days of the policy beginning.</td>
-    </tr>
-    <tr>
-      <td></td>
-      <td class="fw-bolder" scope="row">paymentMethodToken</td>
-      <td>boolean</td>
-      <td>Token which is returned from the Stripe element after checkout.</td>
-    </tr>
-  </tbody>
-</table>
+    const { setupIntent, error } = await stripe.confirmSetup({
+      elements,
+      confirmParams: {},
+      redirect: "if_required"
+    });
 
-**Example Request:**
-{% highlight json %}
-{
-  "analytics": {
-    "medium": "string",
-    "term": "string",
-    "content": "string",
-    "campaign": "summer-sale",
-    "source": "string"
-  },
-  "mailingAddress": {
-    "line1": "123 Main St.",
-    "line2": "string",
-    "city": "Cleveland",
-    "state": "OH",
-    "zipCode": "44120"
-  },
-  "paymentInformation": {
-    "billingAddress": {
-      "line1": "123 Main St.",
-      "line2": "string",
-      "city": "Cleveland",
-      "state": "OH",
-      "zipCode": "44120"
+    if(setupIntent) {
+      // Get the payment_method ID, to send to the Purchase endpoint
+      paymentMethodId = setupIntent.payment_method;
+
+      // -----------------------------------------------------------------------------------
+      // ------- This is where you'll call the Purchase endpoint as seen in Step 4 -------
+      // -----------------------------------------------------------------------------------
+    } else {
+      console.error("Something went wrong");
+      showMessage("An unexpected error occurred.");
+    }
+
+    setLoading(false);
+  }
+
+  // ------- UI helpers -------
+  function showMessage(messageText) {
+    const messageContainer = document.querySelector("#payment-message");
+
+    messageContainer.classList.remove("hidden");
+    messageContainer.textContent = messageText;
+
+    setTimeout(function () {
+      messageContainer.classList.add("hidden");
+      messageContainer.textContent = "";
+    }, 4000);
+  }
+
+  // Show a spinner on payment submission
+  function setLoading(isLoading) {
+    if (isLoading) {
+      // Disable the button and show a spinner
+      document.querySelector("#submit").disabled = true;
+      document.querySelector("#spinner").classList.remove("hidden");
+      document.querySelector("#button-text").classList.add("hidden");
+    } else {
+      document.querySelector("#submit").disabled = false;
+      document.querySelector("#spinner").classList.add("hidden");
+      document.querySelector("#button-text").classList.remove("hidden");
+    }
+  }{% endhighlight %}
+  </div>
+  <div class="tab-pane fade" id="cssCode" role="tabpanel" aria-labelledby="css-tab">
+  {% highlight css linenos %}
+  /* Variables */
+  * {
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-content: center;
+    height: 100vh;
+    width: 100vw;
+  }
+  
+  form {
+    width: 30vw;
+    min-width: 500px;
+    align-self: center;
+    box-shadow: 0px 0px 0px 0.5px rgba(50, 50, 93, 0.1),
+      0px 2px 5px 0px rgba(50, 50, 93, 0.1), 0px 1px 1.5px 0px rgba(0, 0, 0, 0.07);
+    border-radius: 7px;
+    padding: 40px;
+    margin-top: auto;
+    margin-bottom: auto;
+  }
+  
+  .hidden {
+    display: none;
+  }
+  
+  #payment-message {
+    color: rgb(105, 115, 134);
+    font-size: 16px;
+    line-height: 20px;
+    padding-top: 12px;
+    text-align: center;
+  }
+  
+  #payment-element {
+    margin-bottom: 24px;
+  }
+  
+  /* Buttons and links */
+  button {
+    background: #0055DE;
+    font-family: Arial, sans-serif;
+    color: #ffffff;
+    border-radius: 4px;
+    border: 0;
+    padding: 12px 16px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    display: block;
+    transition: all 0.2s ease;
+    box-shadow: 0px 4px 5.5px 0px rgba(0, 0, 0, 0.07);
+    width: 100%;
+  }
+  button:hover {
+    filter: contrast(115%);
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  
+  /* spinner/processing state, errors */
+  .spinner,
+  .spinner:before,
+  .spinner:after {
+    border-radius: 50%;
+  }
+  .spinner {
+    color: #ffffff;
+    font-size: 22px;
+    text-indent: -99999px;
+    margin: 0px auto;
+    position: relative;
+    width: 20px;
+    height: 20px;
+    box-shadow: inset 0 0 0 2px;
+    -webkit-transform: translateZ(0);
+    -ms-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+  .spinner:before,
+  .spinner:after {
+    position: absolute;
+    content: "";
+  }
+  .spinner:before {
+    width: 10.4px;
+    height: 20.4px;
+    background: #0055DE;
+    border-radius: 20.4px 0 0 20.4px;
+    top: -0.2px;
+    left: -0.2px;
+    -webkit-transform-origin: 10.4px 10.2px;
+    transform-origin: 10.4px 10.2px;
+    -webkit-animation: loading 2s infinite ease 1.5s;
+    animation: loading 2s infinite ease 1.5s;
+  }
+  .spinner:after {
+    width: 10.4px;
+    height: 10.2px;
+    background: #0055DE;
+    border-radius: 0 10.2px 10.2px 0;
+    top: -0.1px;
+    left: 10.2px;
+    -webkit-transform-origin: 0px 10.2px;
+    transform-origin: 0px 10.2px;
+    -webkit-animation: loading 2s infinite ease;
+    animation: loading 2s infinite ease;
+  }
+  
+  /* Payment status page */
+  #payment-status {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    row-gap: 30px;
+    width: 30vw;
+    min-width: 500px;
+    min-height: 380px;
+    align-self: center;
+    box-shadow: 0px 0px 0px 0.5px rgba(50, 50, 93, 0.1),
+      0px 2px 5px 0px rgba(50, 50, 93, 0.1), 0px 1px 1.5px 0px rgba(0, 0, 0, 0.07);
+    border-radius: 7px;
+    padding: 40px;
+    opacity: 0;
+    animation: fadeInAnimation 1s ease forwards;
+  }
+  
+  #status-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 40px;
+    width: 40px;
+    border-radius: 50%;
+  }
+  
+  h2 {
+    margin: 0;
+    color: #30313D;
+    text-align: center;
+  }
+  
+  a {
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 600;
+    font-family: Arial, sans-serif;
+    display: block;
+  }
+  a:hover {
+    filter: contrast(120%);
+  }
+  
+  #details-table {
+    overflow-x: auto;
+    width: 100%;
+  }
+  
+  table {
+    width: 100%;
+    font-size: 14px;
+    border-collapse: collapse;
+  }
+  table tbody tr:first-child td {
+    border-top: 1px solid #E6E6E6; /* Top border */
+    padding-top: 10px;
+  }
+  table tbody tr:last-child td {
+    border-bottom: 1px solid #E6E6E6; /* Bottom border */
+  }
+  td {
+    padding-bottom: 10px;
+  }
+  
+  .TableContent {
+    text-align: right;
+    color: #6D6E78;
+  }
+  
+  .TableLabel {
+    font-weight: 600;
+    color: #30313D;
+  }
+  
+  #view-details {
+    color: #0055DE;
+  }
+  
+  #retry-button {
+    text-align: center;
+    background: #0055DE;
+    color: #ffffff;
+    border-radius: 4px;
+    border: 0;
+    padding: 12px 16px;
+    transition: all 0.2s ease;
+    box-shadow: 0px 4px 5.5px 0px rgba(0, 0, 0, 0.07);
+    width: 100%;
+  }
+  
+  @-webkit-keyframes loading {
+    0% {
+      -webkit-transform: rotate(0deg);
+      transform: rotate(0deg);
+    }
+    100% {
+      -webkit-transform: rotate(360deg);
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes loading {
+    0% {
+      -webkit-transform: rotate(0deg);
+      transform: rotate(0deg);
+    }
+    100% {
+      -webkit-transform: rotate(360deg);
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes fadeInAnimation {
+    to {
+        opacity: 1;
+    }
+  }
+  
+  @media only screen and (max-width: 600px) {
+    form, #dpm-annotation, #payment-status{
+      width: 80vw;
+      min-width: initial;
+    }
+  }{% endhighlight %}
+  </div>
+</div>
+
+After the customer submits their payment information, you should call Stripe's `confirmSetup` function, as seen in the checkout.js example above. 
+
+In our example, we added `redirect: "if_required"` so the page doesn't automatically redirect. This is so we can retreive the `payment_method` ID from the `setupIntent`. This ID will need to be added to the `purchase` request, in Step 4, to complete the policy purchase. 
+
+To test this checkout, you can use Stripe's test cards. Check the [**Testing**](/docs/testing) page for more information.
+
+## Step 4: Call the Purchase Endpoint
+To finalize the policy purchase, you will need to call the `purchase-stripe` endpoint, and pass in the `payment_method` ID that was returned from Stripe. 
+
+Make sure to view the [**purchase-stripe request schema**](https://docs.embrace.dev/api-details#api=embrace-quote-api-dev-v2&operation=post-quotes-fullquote-quoteid-purchase) to ensure all required information is being sent.
+
+{% highlight js linenos %}
+let data = {
+    // The payment_method ID that was returned from Stripe
+    paymentMethodToken: paymentMethodId,
+    analytics: analytics,
+    quoteIdToPurchase: quoteId,
+    allPetsVisitedVet: allPetsVisitedVet,
+    mailingAddress: mailingAddress,
+    billingAddress: billingAddress,
+    agreeToTermsOfService: agreeToTermsOfService,
+    firstName: firstName,
+    lastName: lastName
+};
+
+// Send the data via POST
+fetch(`https://api.embrace.dev/external-quote-dev/v2/quotes/fullquote/${quoteId}/purchase-stripe`, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        'epi-apim-subscription-key': 'YOUR_EMBRACE_API_KEY'
     },
-    "paymentMethod": "Ach",
-    "paymentFrequency": "Monthly"
-  },
-  "firstName": "Carlo",
-  "lastName": "Ginzburg",
-  "phoneNumber": "5555555555",
-  "agreeToTermsOfServiceAndPrivacyPolicy": true,
-  "optInTextMessage": true,
-  "allPetsHadVetVisit": true,
-  "paymentMethodToken": "string"
-}
+    body: JSON.stringify(data)
+})
+.then(response => response.json())
+.then(data => {
+    if(data.policyPurchaseSucceeded) {
+        console.log(data.policyNumber);
+    } else {
+        console.error('error when purchasing:', data);
+    }
+})
+.catch(error => {
+    console.error('Error:', error);
+    alert('Error submitting data.');
+});
 {% endhighlight %}
 
 **Example Response:**
@@ -509,4 +593,7 @@ Once payment is confirmed, you’ll need to call our API to finalize the policy 
   "policyNumber": "INS-987654321"
 }
 {% endhighlight %}
+
+
+
 

@@ -18636,3 +18636,7 @@ table {
     font-size: small;
 }
 
+.nav-tabs .nav-link {
+    color: {{ site.color }};
+}
+
