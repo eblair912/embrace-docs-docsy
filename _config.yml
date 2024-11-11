@@ -33,6 +33,7 @@ repo: "https://github.com/eblair912/embrace-docs-docsy"
 github_user: "eblair912"
 github_repo: "embrace-docs-docsy"
 github_branch: "main"
+api_link: "https://docs.embrace.dev/apis"
 
 # Optional
 # twitter: vsoch

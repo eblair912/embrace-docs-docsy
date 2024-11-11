@@ -17,34 +17,13 @@ Before you call this endpoint, you must have all of the details for the quote. M
 document.getElementById('quoteForm').addEventListener('submit', function(e) {
     e.preventDefault();
 
-    // Collect pet data
-    let pets = [];
-    let pet = {
-        name: document.getElementById('petName1').value,
-        breedId: parseInt(document.getElementById('petBreedId1').value),
-        gender: document.getElementById('petGender1').value,
-        age: document.getElementById('petAge1').value
-    };
-    pets.push(pet);
-
-    // Collect contact data
-    let contact = {
-        ratingZipCode: document.getElementById('ratingZipCode').value,
-        email: document.getElementById('email').value,
-        phoneNumber: document.getElementById('phoneNumber').value,
-        brand: document.getElementById('brand').value,
-        billingInformation: {
-            paymentFrequency: document.getElementById('paymentFrequency').value,
-        },
-        isMilitary: document.getElementById('isMilitary').checked,
-    };
-
-    let analytics = {
-        source: "YourSource",
-    }
-
-    // Collect enableEmbraceRemarketing
-    let enableEmbraceRemarketing = false;
+    // Collect quote form values
+    //
+    // let pets = [];
+    // let pet = {
+    //    name: document.getElementById('petName1').value,
+    //    breedId: parseInt(document.getElementById('petBreedId1').value),
+    //    ...
 
     // Construct the data object
     let data = {
@@ -537,7 +516,7 @@ Stripe offers front-end UI components called [Stripe Elements](https://docs.stri
   </div>
 </div>
 
-After the customer submits their payment information, you should call Stripe's `confirmSetup` function, as seen in the checkout.js example above. 
+After the customer submits their payment information, you should call Stripe's `confirmSetup` function, as seen on line 30 in the checkout.js example above. 
 
 In our example, we added `redirect: "if_required"` so the page doesn't automatically redirect. This is so we can retreive the `payment_method` ID from the `setupIntent`. This ID will need to be added to the `purchase` request, in Step 4, to complete the policy purchase. 
 
@@ -549,7 +528,8 @@ To finalize the policy purchase, you will need to call the `purchase-stripe` end
 Make sure to view the [**purchase-stripe request schema**](https://docs.embrace.dev/api-details#api=embrace-quote-api-dev-v2&operation=post-quotes-fullquote-quoteid-purchase) to ensure all required information is being sent.
 
 {% highlight js linenos %}
-let data = {
+async function completePurchase() {
+  let data = {
     // The payment_method ID that was returned from Stripe
     paymentMethodToken: paymentMethodId,
     analytics: analytics,
@@ -560,30 +540,31 @@ let data = {
     agreeToTermsOfService: agreeToTermsOfService,
     firstName: firstName,
     lastName: lastName
-};
+  };
 
-// Send the data via POST
-fetch(`https://api.embrace.dev/external-quote-dev/v2/quotes/fullquote/${quoteId}/purchase-stripe`, {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache',
-        'epi-apim-subscription-key': 'YOUR_EMBRACE_API_KEY'
-    },
-    body: JSON.stringify(data)
-})
-.then(response => response.json())
-.then(data => {
-    if(data.policyPurchaseSucceeded) {
-        console.log(data.policyNumber);
-    } else {
-        console.error('error when purchasing:', data);
-    }
-})
-.catch(error => {
-    console.error('Error:', error);
-    alert('Error submitting data.');
-});
+  // Send the data via POST
+  fetch(`https://api.embrace.dev/external-quote-dev/v2/quotes/fullquote/${quoteId}/purchase-stripe`, {
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'epi-apim-subscription-key': 'YOUR_EMBRACE_API_KEY'
+      },
+      body: JSON.stringify(data)
+  })
+  .then(response => response.json())
+  .then(data => {
+      if(data.policyPurchaseSucceeded) {
+          console.log(data.policyNumber);
+      } else {
+          console.error('error when purchasing:', data);
+      }
+  })
+  .catch(error => {
+      console.error('Error:', error);
+      alert('Error submitting data.');
+  });
+};
 {% endhighlight %}
 
 **Example Response:**
