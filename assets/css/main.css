@@ -18638,5 +18638,6 @@ table {
 
 .nav-tabs .nav-link {
     color: {{ site.color }};
+    font-size: small;
 }
 

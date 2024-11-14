@@ -83,3 +83,4 @@ function toggleIcon(e) {
     collapseTarget.addEventListener('show.bs.collapse', toggleIcon);
     collapseTarget.addEventListener('hide.bs.collapse', toggleIcon);
   });
+

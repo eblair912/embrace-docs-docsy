@@ -1,19 +1,35 @@
 ---
-title: Step-by-Step Integration
+title: Stripe Purchase Flow
 tags: 
  - Stripe
  - Embrace API
 description: How to implement Stripe and the Embrace API, step-by-step
 ---
+<link href="https://cdn.jsdelivr.net/npm/json-formatter-js@2.5.18/dist/json-formatter.min.css" rel="stylesheet">
 
-# Step-by-Step Integration
+<script src="https://cdn.jsdelivr.net/npm/json-formatter-js@2.5.18/dist/json-formatter.umd.min.js"></script>
+
+# Step-by-Step Stripe Integration
 
 ## Step 1: Make a Request to Quote endpoint
 In order to get the quote ID neccessary for a Stripe checkout, you will first need to make a request to Embrace's `/quotes/fullquote` endpoint.
 
 Before you call this endpoint, you must have all of the details for the quote. Make sure to view the [**quote request schema**](https://docs.embrace.dev/api-details#api=embrace-quote-api-dev-v2&operation=post-quotes-fullquote) to ensure all required information is being sent.
 
-{% highlight js linenos %}
+<!-- Nav tabs -->
+<ul class="nav nav-tabs" id="codeTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="js-tab" data-bs-toggle="tab" data-bs-target="#jsCode" type="button" role="tab" aria-controls="jsCode" aria-selected="true">index.js</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="server-tab" data-bs-toggle="tab" data-bs-target="#serverCode" type="button" role="tab" aria-controls="serverCode" aria-selected="false">server.js</button>
+  </li>
+</ul>
+
+<!-- Tab panes -->
+<div class="tab-content" id="codeTabsContent">
+  <div class="tab-pane fade show active" id="jsCode" role="tabpanel" aria-labelledby="js-tab">
+  {% highlight js linenos %}
 document.getElementById('quoteForm').addEventListener('submit', function(e) {
     e.preventDefault();
 
@@ -34,12 +50,10 @@ document.getElementById('quoteForm').addEventListener('submit', function(e) {
     };
 
     // Send the data via POST
-    fetch('https://api.embrace.dev/external-quote-dev/v2/quotes/fullquote', {
+    fetch('/submit-quote', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache',
-            'epi-apim-subscription-key': 'YOUR_EMBRACE_API_KEY'
         },
         body: JSON.stringify(data)
     })
@@ -66,8 +80,56 @@ document.getElementById('quoteForm').addEventListener('submit', function(e) {
         console.error('Error:', error);
         alert('Error submitting data.');
     });
+});{% endhighlight %}
+  </div>
+  <div class="tab-pane fade" id="serverCode" role="tabpanel" aria-labelledby="server-tab">
+  {% highlight js linenos %}
+const express = require('express');
+const app = express();
+
+app.use(express.json()); // Middleware to parse JSON bodies
+
+// Use environment variables to store sensitive data like API keys
+const EMBRACE_API_KEY = process.env.EMBRACE_API_KEY || 'YOUR_EMBRACE_API_KEY';
+
+app.post('/submit-quote', async (req, res) => {
+  try {
+    // Get the data from the request body
+    const data = req.body;
+
+    // Make the POST request to the Embrace API using fetch
+    const apiResponse = await fetch('https://api.embrace.dev/external-quote-dev/v2/quotes/fullquote', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        'epi-apim-subscription-key': EMBRACE_API_KEY,
+      },
+      body: JSON.stringify(data),
+    });
+
+    // Check if the response is OK (status in the range 200-299)
+    if (!apiResponse.ok) {
+      const errorData = await apiResponse.json();
+      console.error('Error response from Embrace API:', errorData);
+      return res.status(apiResponse.status).json(errorData);
+    }
+
+    const apiResponseData = await apiResponse.json();
+
+    // Send back the API response data to the client
+    res.json(apiResponseData);
+  } catch (error) {
+    console.error('Error calling Embrace API:', error.message);
+    res.status(500).json({ error: 'Error calling Embrace API' });
+  }
 });
+
+// CONTINUED IN STEP 2
 {% endhighlight %}
+  </div>
+</div>
+
 
 {% include alert.html type="warning" title="Note" content="The above example does not include all available properties available in the quote request. Please view the full request schema to see all available options." %}
 
@@ -76,11 +138,24 @@ With a successful `quote` response, a **`quoteId`** will be returned. In the exa
 ## Step 2: Make a Request to the Checkout endpoint
 Once the customer has confirmed their quote details, and are ready to checkout, you will need to make a request to Embrace's Checkout endpoint `/quotes/{quoteId}/checkout`. 
 
+<!-- Nav tabs -->
+<ul class="nav nav-tabs" id="step2CodeTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="step-2-js-tab" data-bs-toggle="tab" data-bs-target="#step2JsCode" type="button" role="tab" aria-controls="step2JsCode" aria-selected="true">quote-details.js</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="step-2-server-tab" data-bs-toggle="tab" data-bs-target="#step2ServerCode" type="button" role="tab" aria-controls="step2ServerCode" aria-selected="false">server.js</button>
+  </li>
+</ul>
+
+<!-- Tab panes -->
+<div class="tab-content" id="codeTabsContent">
+  <div class="tab-pane fade show active" id="step2JsCode" role="tabpanel" aria-labelledby="step-2-js-tab">
 {% highlight js linenos %}
 let publishableKey;
 let clientSecret;
 
-document.getElementById('quoteForm').addEventListener('confirm', function(e) {
+document.getElementById('quoteForm').addEventListener('submit', function(e) {
     e.preventDefault();
 
     // Create a URLSearchParams object from the current URL
@@ -90,14 +165,13 @@ document.getElementById('quoteForm').addEventListener('confirm', function(e) {
     const quoteId = urlParams.get('quoteId');
 
     if(quoteId) {
-        // Send the data via POST
-        fetch(`https://api.embrace.dev/external-quote-dev/v2/quotes/${quoteId}/checkout`, {
+        // Send the quoteId via POST
+        fetch(`/checkout`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache',
-                'epi-apim-subscription-key': 'YOUR_EMBRACE_API_KEY'
-            }
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(quoteId)
         })
         .then(response => response.json())
         .then(data => {
@@ -119,29 +193,61 @@ document.getElementById('quoteForm').addEventListener('confirm', function(e) {
     }
 });
 {% endhighlight %}
+  </div>
+  <div class="tab-pane fade" id="step2ServerCode" role="tabpanel" aria-labelledby="step-2-server-tab">
+  {% highlight js linenos %}
+// --------------------------------------
+// ------- CONTINUED FROM STEP 1 --------
+// --------------------------------------
+
+app.post('/checkout', async (req, res) => {
+  try {
+    // Get the data from the request body
+    const data = req.body;
+    const quoteId = req.body.quoteId;
+
+    // Make the POST request to the Embrace API using fetch
+    const apiResponse = await fetch('https://api.embrace.dev/external-quote-dev/v2/quotes/${quoteId}/checkout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        'epi-apim-subscription-key': EMBRACE_API_KEY,
+      },
+      body: JSON.stringify(data),
+    });
+
+    // Check if the response is OK (status in the range 200-299)
+    if (!apiResponse.ok) {
+      const errorData = await apiResponse.json();
+      console.error('Error response from Embrace API:', errorData);
+      return res.status(apiResponse.status).json(errorData);
+    }
+
+    const apiResponseData = await apiResponse.json();
+
+    // Send back the API response data to the client
+    res.json(apiResponseData);
+  } catch (error) {
+    console.error('Error calling Embrace API:', error.message);
+    res.status(500).json({ error: 'Error calling Embrace API' });
+  }
+});
+
+// CONTINUED IN STEP 4
+{% endhighlight %}
+  </div>
+</div>
 
 With a successful `checkout` response, you will receive the following:
 - **`stripePublishableKey`** - used to create a new instance of Stripe.
 - **`stripeSetupIntentClientSecret`** - associated with this specific customer, and used to create a [Stripe Element](https://docs.stripe.com/sdks/stripejs-react#element-components).
 
 **Example Response:**
-{% highlight json %}
-{
-  "analytics": {
-    "medium": "string",
-    "term": "string",
-    "content": "string",
-    "campaign": "summer-sale",
-    "source": "string"
-  },
-  "quoteId": "00000000-0000-0000-0000-000000000000",
-  "quoteState": "Checkout",
-  "sessionType": "string",
-  "stripePublishableKey": "stripe_publishable_key",
-  "stripeSetupIntentClientSecret": "stripe_client_secret"
-}
-{% endhighlight %}
 
+<div class="mb-5" id="checkout-response"></div>
+
+<script src="{{ site.baseurl }}/assets/js/formatter.js"></script>
 
 More details on the `checkout` request and response can be [**found here**](https://docs.embrace.dev/api-details#api=embrace-quote-api-dev-v2&operation=post-quotes-checkout)
 
@@ -154,7 +260,7 @@ Stripe offers front-end UI components called [Stripe Elements](https://docs.stri
     <button class="nav-link active" id="html-tab" data-bs-toggle="tab" data-bs-target="#htmlCode" type="button" role="tab" aria-controls="htmlCode" aria-selected="true">checkout.html</button>
   </li>
   <li class="nav-item" role="presentation">
-    <button class="nav-link" id="js-tab" data-bs-toggle="tab" data-bs-target="#jsCode" type="button" role="tab" aria-controls="jsCode" aria-selected="false">checkout.js</button>
+    <button class="nav-link" id="step-3-js-tab" data-bs-toggle="tab" data-bs-target="#step3JsCode" type="button" role="tab" aria-controls="step3JsCode" aria-selected="false">checkout.js</button>
   </li>
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="css-tab" data-bs-toggle="tab" data-bs-target="#cssCode" type="button" role="tab" aria-controls="cssCode" aria-selected="false">checkout.css</button>
@@ -164,7 +270,6 @@ Stripe offers front-end UI components called [Stripe Elements](https://docs.stri
 <!-- Tab panes -->
 <div class="tab-content" id="codeTabsContent">
   <div class="tab-pane fade show active" id="htmlCode" role="tabpanel" aria-labelledby="html-tab">
-  <!-- Your HTML code example -->
   {% highlight html linenos %}
   <html>
     <head>
@@ -189,8 +294,7 @@ Stripe offers front-end UI components called [Stripe Elements](https://docs.stri
     </body>
   </html>{% endhighlight %}
   </div>
-  <div class="tab-pane fade" id="jsCode" role="tabpanel" aria-labelledby="js-tab">
-  <!-- Your JavaScript code example -->
+  <div class="tab-pane fade" id="step3JsCode" role="tabpanel" aria-labelledby="step-3-js-tab">
   {% highlight js linenos %}
   // Here is where you'll use the stripePublishableKey returned from checkout
   const stripe = Stripe(publishableKey);
@@ -527,6 +631,19 @@ To finalize the policy purchase, you will need to call the `purchase-stripe` end
 
 Make sure to view the [**purchase-stripe request schema**](https://docs.embrace.dev/api-details#api=embrace-quote-api-dev-v2&operation=post-quotes-fullquote-quoteid-purchase) to ensure all required information is being sent.
 
+<!-- Nav tabs -->
+<ul class="nav nav-tabs" id="step2CodeTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="step-4-js-tab" data-bs-toggle="tab" data-bs-target="#step4JsCode" type="button" role="tab" aria-controls="step4JsCode" aria-selected="true">checkout.js</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="step-4-server-tab" data-bs-toggle="tab" data-bs-target="#step4ServerCode" type="button" role="tab" aria-controls="step4ServerCode" aria-selected="false">server.js</button>
+  </li>
+</ul>
+
+<!-- Tab panes -->
+<div class="tab-content" id="codeTabsContent">
+  <div class="tab-pane fade show active" id="step4JsCode" role="tabpanel" aria-labelledby="step-4-js-tab">
 {% highlight js linenos %}
 async function completePurchase() {
   let data = {
@@ -543,12 +660,10 @@ async function completePurchase() {
   };
 
   // Send the data via POST
-  fetch(`https://api.embrace.dev/external-quote-dev/v2/quotes/fullquote/${quoteId}/purchase-stripe`, {
+  fetch('/purchase-stripe', {
       method: 'POST',
       headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
-          'epi-apim-subscription-key': 'YOUR_EMBRACE_API_KEY'
+          'Content-Type': 'application/json'
       },
       body: JSON.stringify(data)
   })
@@ -564,8 +679,56 @@ async function completePurchase() {
       console.error('Error:', error);
       alert('Error submitting data.');
   });
-};
+};{% endhighlight %}
+  </div>
+  <div class="tab-pane fade" id="step4ServerCode" role="tabpanel" aria-labelledby="step-4-server-tab">
+{% highlight js linenos %}
+// ---------------------------------------
+// -------- CONTINUED FROM STEP 2 --------
+// ---------------------------------------
+
+app.post('/purchase-stripe', async (req, res) => {
+  try {
+    // Get the data from the request body
+    const data = req.body;
+    const quoteId = req.body.quoteIdToPurchase;
+
+    // Make the POST request to the Embrace API using fetch
+    const apiResponse = await fetch(`https://api.embrace.dev/external-quote-dev/v2/quotes/fullquote/${quoteId}/purchase-stripe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        'epi-apim-subscription-key': EMBRACE_API_KEY,
+      },
+      body: JSON.stringify(data),
+    });
+
+    // Check if the response is OK (status in the range 200-299)
+    if (!apiResponse.ok) {
+      const errorData = await apiResponse.json();
+      console.error('Error response from Embrace API:', errorData);
+      return res.status(apiResponse.status).json(errorData);
+    }
+
+    const apiResponseData = await apiResponse.json();
+
+    // Send back the API response data to the client
+    res.json(apiResponseData);
+  } catch (error) {
+    console.error('Error calling Embrace API:', error.message);
+    res.status(500).json({ error: 'Error calling Embrace API' });
+  }
+});
+
+const PORT = process.env.PORT || 3000; // Use environment variable or default to 3000
+app.listen(PORT, () => {
+  console.log(`Server started on port ${PORT}`);
+});
 {% endhighlight %}
+  </div>
+</div>
+
 
 **Example Response:**
 {% highlight json %}

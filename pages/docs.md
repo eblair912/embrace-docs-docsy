@@ -11,10 +11,34 @@ permalink: /docs/
 
 **Embrace has transitioned to Stripe as our primary payment processor to enhance security, reliability, and flexibility in our payment processes.** This upgrade enables more secure, streamlined checkouts for our customers, while also offering advanced fraud detection and a seamless experience across various devices. For new policy enrollments, payments will now be collected through Stripe using Stripe Elements, an optimized tool designed for a smooth and consistent user experience.
 
-This documentation provides a step-by-step guide to integrating Stripe Elements with the Embrace API, ensuring compliance with our security standards and simplifying payment handling.
+<mark>There are two different options to complete a policy purchase:</mark>
 
-#### Quick overview of the policy purchasing flow with our external API and Stripe:
-1. [**Request Quotes**](/{{ site.github_repo }}/docs/steps#step-1-make-a-request-to-quote-endpoint) - `/quotes/fullquote` - This step assumes customer and pet details have already been collected.
+#### [Option 1: Redirect to Quote Engine](/{{ site.github_repo }}/docs/qe-steps) 
+
+This option requires less front-end setup, and allows you to redirect the customer to our Quote Engine site. Once the customer is redirected they can complete the policy purchase through Quote Engine. 
+
+1. [**Generate Quote**](/{{ site.github_repo }}/docs/qe-steps#step-1-make-a-request-to-quote-endpoint) - `/quotes/fullquote` - This step assumes basic quote details have already been collected.
+   1. Request
+      1. Customer contact details
+      2. Pet details
+      3. Optional analytics
+   2. Response
+      1. Quote Engine Link
+      2. Additional quote details
+2. [**Additional Quote Details**](/{{ site.github_repo }}/docs/qe-steps#step-2-display-quote-details-to-customer)
+   1. Display quote details to customer.
+   2. Add or update pets and contact information on quote if not already added.
+3. [**Redirect to Quote Engine**](/{{ site.github_repo }}/docs/qe-steps#step-3-redirect-customer-to-quote-engine)
+   1. Once the customer has confimed the quote details and is ready to purchase, redirect them to the Quote Engine link provided in the `quote` response.
+   2. Customer completes purchase through Quote Engine.
+
+Please check the [**Quote Engine Flow**](/{{ site.github_repo }}/docs/qe-steps) page for full step-by-step instructions.
+
+#### [Option 2: Create Full Purchase Flow with Stripe](/{{ site.github_repo }}/docs/steps)
+
+If you want to set up your own purchase flow, this documentation provides a step-by-step guide to integrating Stripe Elements with the Embrace API.
+
+1. [**Generate Quote**](/{{ site.github_repo }}/docs/steps#step-1-make-a-request-to-quote-endpoint) - `/quotes/fullquote` - This step assumes customer and pet details have already been collected.
    1. Request
       1. Customer contact details
       2. Pet details
@@ -44,3 +68,4 @@ This documentation provides a step-by-step guide to integrating Stripe Elements 
       1. Purchase succeeded result
       2. Policy number
    
+Please check the [**Stripe Purchase Flow**](/{{ site.github_repo }}/docs/steps) page for full step-by-step instructions.
