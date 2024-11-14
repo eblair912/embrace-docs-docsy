@@ -11,7 +11,7 @@ permalink: /docs/
 
 **Embrace has transitioned to Stripe as our primary payment processor to enhance security, reliability, and flexibility in our payment processes.** This upgrade enables more secure, streamlined checkouts for our customers, while also offering advanced fraud detection and a seamless experience across various devices. For new policy enrollments, payments will now be collected through Stripe using Stripe Elements, an optimized tool designed for a smooth and consistent user experience.
 
-<mark>There are two different options to complete a policy purchase:</mark>
+Alternatively, to simplify the completion of policy purchases without setting up Stripe Elements, you may redirect customers to the Quote Engine after generating a quote, where they can finalize the purchase.
 
 #### [Option 1: Redirect to Quote Engine](/{{ site.github_repo }}/docs/qe-steps) 
 

@@ -140,6 +140,19 @@ After a successful `quote` response, display the quote information to the custom
 
 If the pet information was not added when the quote was generated, you can use the `pet` endpoint to add a pet. You can check the [**pet endpoint page**](https://docs.embrace.dev/api-details#api=embrace-quote-api-2&operation=post-quotes-fullquote-quoteid-pet) for a full request and response example.
 
+<!-- Nav tabs -->
+<ul class="nav nav-tabs" id="codeTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="step-2-js-tab" data-bs-toggle="tab" data-bs-target="#step2JsCode" type="button" role="tab" aria-controls="step2JsCode" aria-selected="true">quote-details.js</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="step-2-server-tab" data-bs-toggle="tab" data-bs-target="#step2ServerCode" type="button" role="tab" aria-controls="step2ServerCode" aria-selected="false">server.js</button>
+  </li>
+</ul>
+
+<!-- Tab panes -->
+<div class="tab-content" id="codeTabsContent">
+  <div class="tab-pane fade show active" id="step2JsCode" role="tabpanel" aria-labelledby="step-2-js-tab">
 {% highlight js linenos %}
 document.getElementById('quoteDetails').addEventListener('click', function(e){
     e.preventDefault();
@@ -151,12 +164,10 @@ document.getElementById('quoteDetails').addEventListener('click', function(e){
         age: document.getElementById('age').value
     };
 
-    fetch(`https://api.embrace.dev/external-quote-dev/v2/quotes/fullquote/${quoteId}/pet`, {
+    fetch(`/update-pet`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache',
-            'epi-apim-subscription-key': 'YOUR_EMBRACE_API_KEY'
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify(data)
     })
@@ -167,8 +178,47 @@ document.getElementById('quoteDetails').addEventListener('click', function(e){
     .catch(error => {
         console.error('Error:', error);
     });
-});
-{% endhighlight %}
+});{% endhighlight %}
+  </div>
+  <div class="tab-pane fade" id="step2ServerCode" role="tabpanel" aria-labelledby="step-2-server-tab">
+  {% highlight js linenos %}
+app.post('/update-pet', async (req, res) => {
+  try {
+    // Get the data from the request body
+    const data = req.body;
+    const quoteId = req.body.quoteId;
+
+    // Make the POST request to the Embrace API using fetch
+    const apiResponse = await fetch('https://api.embrace.dev/external-quote-dev/v2/quotes/fullquote/${quoteId}/pet', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        'epi-apim-subscription-key': EMBRACE_API_KEY,
+      },
+      body: JSON.stringify(data),
+    });
+
+    // Check if the response is OK (status in the range 200-299)
+    if (!apiResponse.ok) {
+      const errorData = await apiResponse.json();
+      console.error('Error response from Embrace API:', errorData);
+      return res.status(apiResponse.status).json(errorData);
+    }
+
+    const apiResponseData = await apiResponse.json();
+
+    // Send back the API response data to the client
+    res.json(apiResponseData);
+  } catch (error) {
+    console.error('Error calling Embrace API:', error.message);
+    res.status(500).json({ error: 'Error calling Embrace API' });
+  }
+});{% endhighlight %}
+  </div>
+</div>
+
+
 
 ## Step 3: Redirect Customer to Quote Engine
 After the customer has reviewed the quote information, added pets, and is ready purchase the quote, redirect them to Quote Engine using the **`quoteLinkUrl`** obtained from the `quote` response in Step 1. 
