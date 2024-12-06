@@ -14,7 +14,7 @@ description: How to redirect customer to Quote Engine for policy purchase
 ## Step 1: Make a Request to Quote endpoint
 In order to get the redirect URL for Quote Engine, you'll need to make a request to Embrace's `/quotes/fullquote` endpoint.
 
-Before you call this endpoint, you must have all of the details for the quote. Make sure to view the [**quote request schema**](https://docs.embrace.dev/api-details#api=embrace-quote-api-dev-v2&operation=post-quotes-fullquote) to ensure all required information is being sent.
+Before you call this endpoint, you must have all of the details for the quote. Make sure to view our [**quote page**](https://docs.embrace.dev/api-details#api=embrace-quote-api-dev-v2&operation=post-quotes-fullquote) to get the full endpoint and schema.
 
 <!-- Nav tabs -->
 <ul class="nav nav-tabs" id="codeTabs" role="tablist">
@@ -90,7 +90,7 @@ app.post('/submit-quote', async (req, res) => {
     const data = req.body;
 
     // Make the POST request to the Embrace API using fetch
-    const apiResponse = await fetch('https://api.embrace.dev/external-quote-dev/v2/quotes/fullquote', {
+    const apiResponse = await fetch('https://[embrace-test-endpoint]/v2/quotes/fullquote', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -138,7 +138,7 @@ With a successful `quote` response, a **`quoteLinkUrl`** will be returned. In th
 ## Step 2: Display Quote Details to Customer
 After a successful `quote` response, display the quote information to the customer as needed.
 
-If the pet information was not added when the quote was generated, you can use the `pet` endpoint to add a pet. You can check the [**pet endpoint page**](https://docs.embrace.dev/api-details#api=embrace-quote-api-2&operation=post-quotes-fullquote-quoteid-pet) for a full request and response example.
+If the pet information was not added when the quote was generated, you can use the `pet` endpoint to add a pet. You can check the [**pet endpoint page**](https://docs.embrace.dev/api-details#api=embrace-quote-api-2&operation=post-quotes-fullquote-quoteid-pet) for the full endpoint and schemas.
 
 <!-- Nav tabs -->
 <ul class="nav nav-tabs" id="codeTabs" role="tablist">
@@ -189,7 +189,7 @@ app.post('/update-pet', async (req, res) => {
     const quoteId = req.body.quoteId;
 
     // Make the POST request to the Embrace API using fetch
-    const apiResponse = await fetch('https://api.embrace.dev/external-quote-dev/v2/quotes/fullquote/${quoteId}/pet', {
+    const apiResponse = await fetch('https://[embrace-test-endpoint]/v2/quotes/fullquote/${quoteId}/pet', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

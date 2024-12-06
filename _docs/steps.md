@@ -14,7 +14,9 @@ description: How to implement Stripe and the Embrace API, step-by-step
 ## Step 1: Make a Request to Quote endpoint
 In order to get the quote ID neccessary for a Stripe checkout, you will first need to make a request to Embrace's `/quotes/fullquote` endpoint.
 
-Before you call this endpoint, you must have all of the details for the quote. Make sure to view the [**quote request schema**](https://docs.embrace.dev/api-details#api=embrace-quote-api-dev-v2&operation=post-quotes-fullquote) to ensure all required information is being sent.
+Before you call this endpoint, you must have all of the details for the quote. Make sure to view our [**quote page**](https://docs.embrace.dev/api-details#api=embrace-quote-api-dev-v2&operation=post-quotes-fullquote) to see the full endpoint and schema.
+
+{% include alert.html type="warning" title="Note" content="The below example does not show the full quote request schema. Please view the full request schema to see all available options." %}
 
 <!-- Nav tabs -->
 <ul class="nav nav-tabs" id="codeTabs" role="tablist">
@@ -98,7 +100,7 @@ app.post('/submit-quote', async (req, res) => {
     const data = req.body;
 
     // Make the POST request to the Embrace API using fetch
-    const apiResponse = await fetch('https://api.embrace.dev/external-quote-dev/v2/quotes/fullquote', {
+    const apiResponse = await fetch('https://[embrace-test-endpoint]/v2/quotes/fullquote', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -130,13 +132,12 @@ app.post('/submit-quote', async (req, res) => {
   </div>
 </div>
 
-
-{% include alert.html type="warning" title="Note" content="The above example does not include all available properties available in the quote request. Please view the full request schema to see all available options." %}
-
 With a successful `quote` response, a **`quoteId`** will be returned. In the example above you can see we are setting the `quoteId` as a URL parameter, so it can be used after the customer has confirmed their quote details. 
 
 ## Step 2: Make a Request to the Checkout endpoint
 Once the customer has confirmed their quote details, and are ready to checkout, you will need to make a request to Embrace's Checkout endpoint `/quotes/{quoteId}/checkout`. 
+
+More details on the `checkout` request, response, and the full endpoint can be found in our [**checkout endpoint page**](https://docs.embrace.dev/api-details#api=embrace-quote-api-dev-v2&operation=post-quotes-checkout)
 
 <!-- Nav tabs -->
 <ul class="nav nav-tabs" id="step2CodeTabs" role="tablist">
@@ -207,7 +208,7 @@ app.post('/checkout', async (req, res) => {
     const quoteId = req.body.quoteId;
 
     // Make the POST request to the Embrace API using fetch
-    const apiResponse = await fetch('https://api.embrace.dev/external-quote-dev/v2/quotes/${quoteId}/checkout', {
+    const apiResponse = await fetch('https://[embrace-test-endpoint]/v2/quotes/${quoteId}/checkout', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -248,8 +249,6 @@ With a successful `checkout` response, you will receive the following:
 <div class="mb-5" id="checkout-response"></div>
 
 <script src="{{ site.baseurl }}/assets/js/formatter.js"></script>
-
-More details on the `checkout` request and response can be [**found here**](https://docs.embrace.dev/api-details#api=embrace-quote-api-dev-v2&operation=post-quotes-checkout)
 
 ## Step 3: Initialize Stripe and Display Checkout
 Stripe offers front-end UI components called [Stripe Elements](https://docs.stripe.com/payments/payment-element). This is what we will use to display the checkout to the customer.
@@ -629,7 +628,7 @@ To test this checkout, you can use Stripe's test cards. Check the [**Testing**](
 ## Step 4: Call the Purchase Endpoint
 To finalize the policy purchase, you will need to call the `purchase-stripe` endpoint, and pass in the `payment_method` ID that was returned from Stripe. 
 
-Make sure to view the [**purchase-stripe request schema**](https://docs.embrace.dev/api-details#api=embrace-quote-api-dev-v2&operation=post-quotes-fullquote-quoteid-purchase) to ensure all required information is being sent.
+Make sure to view our [**purchase-stripe endpoint page**](https://docs.embrace.dev/api-details#api=embrace-quote-api-dev-v2&operation=post-quotes-fullquote-quoteid-purchase) to see the full endpoint and request schema.
 
 <!-- Nav tabs -->
 <ul class="nav nav-tabs" id="step2CodeTabs" role="tablist">
@@ -694,7 +693,7 @@ app.post('/purchase-stripe', async (req, res) => {
     const quoteId = req.body.quoteIdToPurchase;
 
     // Make the POST request to the Embrace API using fetch
-    const apiResponse = await fetch(`https://api.embrace.dev/external-quote-dev/v2/quotes/fullquote/${quoteId}/purchase-stripe`, {
+    const apiResponse = await fetch(`https://[embrace-test-endpoint]/v2/quotes/fullquote/${quoteId}/purchase-stripe`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
